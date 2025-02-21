@@ -5,7 +5,8 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const t = target.result;
 
-    const is_shared_library = t.isAndroid();
+    const is_android = if (@hasDecl(@TypeOf(t), "isAndroid")) t.isAndroid() else t.abi.isAndroid();
+    const is_shared_library = is_android;
     const lib = if (!is_shared_library) b.addStaticLibrary(.{
         .name = "SDL2",
         .target = target,
@@ -74,7 +75,7 @@ pub fn build(b: *std.Build) void {
             lib.addIncludePath(.{ .cwd_relative = cache_include });
         },
         else => {
-            if (t.isAndroid()) {
+            if (is_android) {
                 lib.root_module.addCSourceFiles(.{
                     .files = &android_src_files,
                 });
@@ -115,7 +116,7 @@ pub fn build(b: *std.Build) void {
 
     const use_pregenerated_config = switch (t.os.tag) {
         .windows, .macos, .emscripten => true,
-        .linux => t.isAndroid(),
+        .linux => is_android,
         else => false,
     };
 
@@ -158,14 +159,14 @@ pub fn build(b: *std.Build) void {
             .style = .{ .cmake = b.path("include/SDL_revision.h.cmake") },
             .include_path = "SDL_revision.h",
         }, .{
-            .SDL_REVISION = "SDL-2.30.11",
+            .SDL_REVISION = "SDL-2.32.0",
             .SDL_VENDOR_INFO = "allyourcodebase.com",
         });
         lib.addConfigHeader(revision_header);
         lib.installHeader(revision_header.getOutput(), "SDL2/SDL_revision.h");
     }
 
-    const use_hidapi = b.option(bool, "use_hidapi", "Use hidapi shared library") orelse t.isAndroid();
+    const use_hidapi = b.option(bool, "use_hidapi", "Use hidapi shared library") orelse is_android;
 
     if (use_hidapi) {
         const hidapi_lib = b.addSharedLibrary(.{
@@ -685,7 +686,6 @@ const unknown_src_files = [_][]const u8{
     "src/test/SDL_test_memory.c",
     "src/test/SDL_test_random.c",
 
-    "src/thread/n3ds/SDL_syscond.c",
     "src/thread/n3ds/SDL_sysmutex.c",
     "src/thread/n3ds/SDL_syssem.c",
     "src/thread/n3ds/SDL_systhread.c",
@@ -1183,7 +1183,7 @@ fn configHeader(b: *std.Build, t: std.Target) *std.Build.Step.ConfigHeader {
         .HAVE_SETJMP = 1,
         .HAVE_NANOSLEEP = 1,
         .HAVE_SYSCONF = 1,
-        .HAVE_SYSCTLBYNAME = t.isDarwin(),
+        .HAVE_SYSCTLBYNAME = t.os.tag.isDarwin(),
         .HAVE_CLOCK_GETTIME = 1,
         .HAVE_GETPAGESIZE = 1,
         .HAVE_MPROTECT = 1,
