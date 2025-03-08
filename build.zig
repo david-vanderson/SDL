@@ -5,18 +5,15 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const t = target.result;
 
-    const is_android = if (@hasDecl(@TypeOf(t), "isAndroid")) t.isAndroid() else t.abi.isAndroid();
-    const is_shared_library = is_android;
-    const lib = if (!is_shared_library) b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
         .name = "SDL2",
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    }) else b.addSharedLibrary(.{
-        .name = "SDL2",
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
+        .version = .{ .major = 2, .minor = 32, .patch = 2 },
+        .linkage = if (t.abi.isAndroid()) .dynamic else .static,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
     });
 
     const sdl_include_path = b.path("include");
@@ -24,7 +21,7 @@ pub fn build(b: *std.Build) void {
     lib.root_module.addCMacro("SDL_USE_BUILTIN_OPENGL_DEFINITIONS", "1");
     lib.root_module.addCMacro("HAVE_GCC_ATOMICS", "1");
     lib.root_module.addCMacro("HAVE_GCC_SYNC_LOCK_TEST_AND_SET", "1");
-    lib.linkLibC();
+
     switch (t.os.tag) {
         .windows => {
             lib.root_module.addCMacro("SDL_STATIC_LIB", "");
@@ -75,7 +72,7 @@ pub fn build(b: *std.Build) void {
             lib.addIncludePath(.{ .cwd_relative = cache_include });
         },
         else => {
-            if (is_android) {
+            if (t.abi.isAndroid()) {
                 lib.root_module.addCSourceFiles(.{
                     .files = &android_src_files,
                 });
@@ -116,7 +113,7 @@ pub fn build(b: *std.Build) void {
 
     const use_pregenerated_config = switch (t.os.tag) {
         .windows, .macos, .emscripten => true,
-        .linux => is_android,
+        .linux => t.abi.isAndroid(),
         else => false,
     };
 
@@ -159,14 +156,14 @@ pub fn build(b: *std.Build) void {
             .style = .{ .cmake = b.path("include/SDL_revision.h.cmake") },
             .include_path = "SDL_revision.h",
         }, .{
-            .SDL_REVISION = "SDL-2.32.0",
+            .SDL_REVISION = b.fmt("SDL-{}", .{lib.version.?}),
             .SDL_VENDOR_INFO = "allyourcodebase.com",
         });
         lib.addConfigHeader(revision_header);
         lib.installHeader(revision_header.getOutput(), "SDL2/SDL_revision.h");
     }
 
-    const use_hidapi = b.option(bool, "use_hidapi", "Use hidapi shared library") orelse is_android;
+    const use_hidapi = b.option(bool, "use_hidapi", "Use hidapi shared library") orelse t.abi.isAndroid();
 
     if (use_hidapi) {
         const hidapi_lib = b.addSharedLibrary(.{
