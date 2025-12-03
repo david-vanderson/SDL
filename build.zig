@@ -66,7 +66,7 @@ pub fn build(b: *std.Build) void {
             const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
             defer b.allocator.free(cache_include);
 
-            var dir = std.fs.openDirAbsolute(cache_include, .{ .access_sub_paths = true, .follow_symlinks = false }) catch @panic("No emscripten cache. Generate it!");
+            var dir = std.fs.openDirAbsolute(cache_include, .{ .access_sub_paths = true, .no_follow = true }) catch @panic("No emscripten cache. Generate it!");
             dir.close();
 
             lib.addIncludePath(.{ .cwd_relative = cache_include });
