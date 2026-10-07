@@ -59,11 +59,12 @@ pub fn build(b: *std.Build) void {
             lib.root_module.addCMacro("__EMSCRIPTEN_PTHREADS__ ", "1");
             lib.root_module.addCMacro("USE_SDL", "2");
             lib.root_module.addCSourceFiles(.{ .files = &emscripten_src_files });
-            if (b.sysroot == null) {
-                @panic("Pass '--sysroot \"$EMSDK/upstream/emscripten\"'");
-            }
 
-            const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
+            const em_sysroot = b.option([]const u8, "emscripten-sysroot", "sysroot of emscripten instalation") orelse {
+                @panic("Pass '-Demscripten-sysroot=\"$EMSDK/upstream/emscripten\"'");
+            };
+
+            const cache_include = std.fs.path.join(b.allocator, &.{ em_sysroot, "cache", "sysroot", "include" }) catch @panic("Out of memory");
             defer b.allocator.free(cache_include);
 
             var dir = std.Io.Dir.openDirAbsolute(b.graph.io, cache_include, .{ .access_sub_paths = true, .follow_symlinks = false }) catch @panic("No emscripten cache. Generate it!");
