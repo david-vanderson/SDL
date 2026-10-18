@@ -450,6 +450,10 @@ const linux_src_files = [_][]const u8{
     "src/thread/pthread/SDL_systhread.c",
     "src/thread/pthread/SDL_systls.c",
 
+    "src/thread/pthread/SDL_syscond.c",
+    "src/locale/unix/SDL_syslocale.c",
+    "src/power/linux/SDL_syspower.c",
+
     "src/timer/unix/SDL_systimer.c",
 
     "src/video/x11/SDL_x11clipboard.c",
